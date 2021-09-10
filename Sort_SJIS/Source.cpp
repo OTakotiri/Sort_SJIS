@@ -1,3 +1,6 @@
+//==========================================
+// C++17 , x86環境でビルド.
+
 #include <algorithm>
 #include <iostream>
 #include <fstream>
@@ -6,13 +9,20 @@
 #include <vector>
 #include <filesystem>
 #include "CheckSJISCode.h"
+// ソートするテキストを入れているファイルパス.
 const std::string FILE_PATH = "TextData\\In\\";
+// ソート後のテキストを出力するファイルパス.
 const std::string OUT_FILENAME = "TextData\\EndData.txt";
+// WstringをString型に変換.
 const std::string WStringToString(std::wstring oWString);
+// StringをWstring型に変換.
 const std::wstring ConvertStringToWstring(std::string string);
+// テキスト読み込み.
+void InText(std::vector<std::string>& tx, std::string& Char);
 
 int main()
 {
+	clock_t start = clock();    // スタート時間
 	std::cout << "ファイル取得中..." << std::endl;
 	std::vector<std::string> TxtFilePath;
 	// txtファイル取得.
@@ -25,7 +35,6 @@ int main()
 
 		TxtFilePath.push_back(filePath);
 	};
-
 	try {
 		//指定パス(FILE_PATH)ディレクトリ内を再帰的に走査
 		std::filesystem::recursive_directory_iterator dir_itr(FILE_PATH), end_itr;
@@ -40,10 +49,11 @@ int main()
 
 	std::vector<std::string> readList;	// 読みこんだテキストリスト.
 	std::string Text;					// 読みこんだテキスト.
-	// 文字のサイズ.
-	int Textlength = 0;
 
 	std::cout << "テキスト取得中..." << std::endl;
+
+	std::vector<std::string> TextVec;
+
 	for (size_t i = 0; i < TxtFilePath.size(); i++) {
 
 		std::fstream fileStream(TxtFilePath[i]);
@@ -66,6 +76,7 @@ int main()
 				readList.emplace_back(buff);
 			}
 		}
+
 		for (const auto& v : readList) {
 			for (int i = 0; i < static_cast<int>(v.size()); i++) {
 				std::string f = v.substr(i, 1);
@@ -78,15 +89,19 @@ int main()
 				// @ もしくは $ ならやり直し.
 				if (f == "@" || f == "$") continue;
 				// 取得した文字がすでにあればやり直し.
-				if (Text.find(f) != std::string::npos) continue;
+				if (f == "d") {
+					int a = 0;
+				}
+				InText(TextVec, f);
 
-				Text += f;
-				Textlength++;
 			}
 		}
-
 		readList.clear();
 		fileStream.close();
+	}
+
+	for (const auto& v : TextVec) {
+		Text += v;
 	}
 
 	// wstringの生成.
@@ -116,8 +131,10 @@ int main()
 	// 文字種事に改行を挟むため、SJISコードチェック.
 	for (size_t i = 0; i < Text.size(); i++) {
 		CCheckSJisMojiCode::enMojiType TmpType = pCheckMoji->CheckMojiCode(ReadSortList[CharPage]);
+		std::cout << ReadSortList[CharPage];
 		if (TmpType != Type) {
 			if (Type != CCheckSJisMojiCode::enMojiType::None) {
+				std::cout << std::endl;
 				Text.insert(i, "\n");
 				i++;
 			}
@@ -133,13 +150,17 @@ int main()
 	fo.open(OUT_FILENAME, std::ios::out | std::ios::trunc);
 	fo << Text;
 	fo.close();
+	clock_t end = clock();     // 終了時間
+
+	std::cout << "処理時間 = " << (double)(end - start) / CLOCKS_PER_SEC << "sec.\n";
+
 	std::cout << "正常に終了しました。約2秒後に自動で終了" << std::endl;
 	Sleep(2000);
 
 	return 0;
 }
 // wstringをstirng型に変換.
-const std::string WStringToString( std::wstring oWString )
+const std::string WStringToString(std::wstring oWString)
 {
 	// wstring → SJIS
 	int iBufferSize = WideCharToMultiByte(CP_OEMCP, 0, oWString.c_str()
@@ -173,4 +194,18 @@ const std::wstring ConvertStringToWstring(std::string string)
 	delete[] cpUCS2;
 
 	return ws;
+}
+
+void InText(std::vector<std::string>& tx, std::string& Char)
+{
+	// 一度Wstringにしないと、日本語と英語の比較が引っかかる事があるため、一度変換.
+	for (const auto& tx : tx) {
+		std::wstring ws = ConvertStringToWstring(Char);
+		std::wstring Text = ConvertStringToWstring(tx);
+
+		if (Text.find(ws) != std::string::npos) {
+			return;
+		}
+	}
+	tx.emplace_back(Char);
 }
